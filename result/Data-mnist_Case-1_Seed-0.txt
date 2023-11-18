@@ -1,0 +1,51 @@
+Start training
+-------------------
+Round [1/50]
+Local Training Accuracy: 0.717
+Global Testing Accuracy: GAcc: 0.113
+Time: 25.542
+-------------------
+Round [2/50]
+Local Training Accuracy: 0.846
+Global Testing Accuracy: GAcc: 0.173
+Time: 26.391
+-------------------
+Round [3/50]
+Local Training Accuracy: 0.880
+Global Testing Accuracy: GAcc: 0.640
+Time: 25.691
+-------------------
+Round [4/50]
+Local Training Accuracy: 0.960
+Global Testing Accuracy: GAcc: 0.927
+Time: 27.242
+-------------------
+Round [5/50]
+Local Training Accuracy: 0.982
+Global Testing Accuracy: GAcc: 0.962
+Time: 24.528
+-------------------
+Round [6/50]
+Local Training Accuracy: 0.988
+Global Testing Accuracy: GAcc: 0.965
+Time: 25.695
+-------------------
+Round [7/50]
+Local Training Accuracy: 0.990
+Global Testing Accuracy: GAcc: 0.970
+Time: 25.023
+-------------------
+Round [8/50]
+Local Training Accuracy: 0.995
+Global Testing Accuracy: GAcc: 0.977
+Time: 24.661
+-------------------
+Round [9/50]
+Local Training Accuracy: 0.999
+Global Testing Accuracy: GAcc: 0.978
+Time: 26.543
+-------------------
+Round [10/50]
+Local Training Accuracy: 0.997
+Global Testing Accuracy: GAcc: 0.982
+Time: 25.137
