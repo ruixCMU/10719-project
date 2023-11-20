@@ -59,7 +59,7 @@ def data_split(dataset, data_distribution):
     return client_data_indices
 
 def data_split_iidness(dataset, beta, num_clients):
-    y_train = dataset.targets
+    y_train = torch.from_numpy(np.array(dataset.targets))
     num_classes = torch.unique(y_train).shape[0]
 
     # shuffle the data indices
