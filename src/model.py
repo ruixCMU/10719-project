@@ -108,3 +108,21 @@ def ResNet101(data_dimension):
 
 def ResNet152(data_dimension):
     return ResNet(data_dimension, Bottleneck, [3, 8, 36, 3])
+
+
+class MLP(nn.Module):
+
+    def __init__(self, dim_in: int, dim_out: int = 10) -> None:
+        super(MLP, self).__init__()
+
+        self.sequential = nn.Sequential(
+            nn.Flatten(start_dim=1),
+            nn.Linear(dim_in, 50),
+            nn.ReLU(),
+            nn.Linear(50, 10),
+            nn.ReLU(),
+            nn.Linear(10, dim_out)
+        )
+
+    def forward(self, X):
+        return self.sequential(X)

@@ -5,6 +5,8 @@ import numpy as np
 
 from tqdm import tqdm
 
+import os
+
 DATA_PATH = "D:/DATA/"
 
 def load_data(name_data):
@@ -89,7 +91,7 @@ def data_split_iidness(dataset, beta, num_clients):
         sampled_client_data_indices = None
         for label in range(num_classes):
             # how many samples are there for each label? 
-            num_labels = np.round(num_each_client * labels_distribution[label])
+            num_labels = int(np.round(num_each_client * labels_distribution[label]))
             y_client_label_iis = torch.where(y_client == label)[0]  # where are those labels. they are indices of indices for original dataset
 
             num_labels_exist = y_client_label_iis.shape[0]
@@ -97,6 +99,9 @@ def data_split_iidness(dataset, beta, num_clients):
                 # if there are not enough samples for this label, add some more
                 more_label_iiis = torch.randint(0, num_labels_exist, (int(num_labels - num_labels_exist),)).flatten()   # they are indices for indices for indices of original dataset
                 y_client_label_iis = torch.concat([y_client_label_iis, y_client_label_iis[more_label_iiis]], dim=0)
+            else:
+                # enough? Truncate!
+                y_client_label_iis = y_client_label_iis[:num_labels]
             # recover indices in original dataset
             y_client_label_is = client_data_indices[y_client_label_iis]
 
@@ -119,10 +124,15 @@ def data_split_iidness(dataset, beta, num_clients):
     # return torch.from_numpy(splitted_client_indices)
     return splitted_client_indices
 
-def split_and_store(dataset, beta, num_clients, data_dir="D:/DATA/mnist_splitted/"):
+def split_and_store(dataset, beta, num_clients, data_dir):
     # store the data for each client into a .npy file
+    data_dir += f"Beta-{int(beta) if beta.is_integer() else beta}/"
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+
+    # get the splitted indices
     splitted_client_indices = data_split_iidness(dataset, beta, num_clients)
-    print(splitted_client_indices.shape)
+    y_dataset = np.array(dataset.targets, dtype=np.int64)   # get labels of the dataset, in case cifar10 targets is a list
     for client_id in tqdm(range(num_clients)):
         client_indices = splitted_client_indices[client_id]
         client_dataset = Subset(dataset, client_indices)
@@ -131,7 +141,7 @@ def split_and_store(dataset, beta, num_clients, data_dir="D:/DATA/mnist_splitted
         for X, _ in client_dataset:
             X_client.append(X.numpy())
         
-        X_client = np.array(X_client)
-        y_client = dataset.targets[client_indices]
+        X_client = np.array(X_client, dtype=np.float32)
+        y_client = y_dataset[client_indices]
 
         np.savez(data_dir + f"client_{client_id}", X=X_client, y=y_client)

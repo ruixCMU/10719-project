@@ -16,7 +16,7 @@ from src.testing import global_testing
 
 import os
 
-def sanity_check(data_dir = "D:/DATA/mnist_splitted/"):
+def sanity_check(data_dir):
     files = os.listdir(data_dir)
 
     min_min = float("inf")
@@ -34,10 +34,18 @@ def sanity_check(data_dir = "D:/DATA/mnist_splitted/"):
     
     return min_min, max_max
 
-if __name__ == "__main__":
-    trainset, testset, data_dimension = load_data("mnist")
-    num_clients = 100
-    split_and_store(trainset, 1e4, num_clients)
+def _get_args():
+    p = argparse.ArgumentParser()
+    # Define command-line arguments
+    p.add_argument("--data_name", help="data_name", type=str, default="cifar10")
+    p.add_argument("--beta", help="beta, the higher, the more iid, larger than 1e-2", type=float, default=1e4)
+    return p.parse_args()
 
-    min_min, max_max = sanity_check()
+if __name__ == "__main__":
+    args = _get_args()
+    trainset, testset, data_dimension = load_data(args.data_name)
+    num_clients = 100
+    split_and_store(trainset, args.beta, num_clients, data_dir=f"D:/DATA/{args.data_name}-splitted/")
+
+    min_min, max_max = sanity_check(f"D:/DATA/{args.data_name}-splitted/Beta-{int(args.beta) if args.beta.is_integer() else args.beta}/")
     print(min_min, max_max)
