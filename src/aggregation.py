@@ -1,6 +1,6 @@
 import numpy as np
 
-def fedavg(local_weights,selected_clients_data_num):
+def fedavg(local_weights, selected_clients_data_num):
     # Initialize by getting the keys of the weights dictionary from the first local model.
     weight_keys = local_weights[0].keys()
     # Calculate the total number of samples across all clients.

@@ -40,6 +40,19 @@ def load_data(name_data):
         testset = datasets.MNIST(root=DATA_PATH, train=False, download=True, transform=transform_test)     
         # MNIST has 1 color channel (grayscale)
         data_dimension = 1
+    elif name_data == "fmnist":
+        # Define transformations for FashionMNIST data
+        transform_train = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,), (0.5,))])
+        transform_test = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,), (0.5,))])
+        # Load MNIST dataset        
+        trainset = datasets.FashionMNIST(root=DATA_PATH, train=True, download=True, transform=transform_train)
+        testset = datasets.FashionMNIST(root=DATA_PATH, train=False, download=True, transform=transform_test)     
+        # MNIST has 1 color channel (grayscale)
+        data_dimension = 1
     return trainset, testset, data_dimension
 
 def data_split(dataset, data_distribution):
@@ -86,6 +99,7 @@ def data_split_iidness(dataset, beta, num_clients):
         y_client = y_train[client_data_indices]
         # beta sample, higher beta lead to more averaged number of classes
         labels_distribution = np.random.dirichlet(np.repeat(beta, num_classes))
+        # print(np.argmax(labels_distribution))
 
         # indices of data after beta sampling for each client
         sampled_client_data_indices = None

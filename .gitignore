@@ -1,2 +1,4 @@
 result/*
+models/*
+stats/*
 src/__pycache__/*

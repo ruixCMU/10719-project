@@ -4,6 +4,8 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
+import numpy as np
+
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -109,20 +111,45 @@ def ResNet101(data_dimension):
 def ResNet152(data_dimension):
     return ResNet(data_dimension, Bottleneck, [3, 8, 36, 3])
 
+def resnet(num_layers, data_dimension):
+    if num_layers == 18:
+        return ResNet18(data_dimension)
+    if num_layers == 34:
+        return ResNet34(data_dimension)
+    if num_layers == 50:
+        return ResNet50(data_dimension)
+    if num_layers == 101:
+        return ResNet101(data_dimension)
+    if num_layers == 152:
+        return ResNet152(data_dimension)
+    else:
+        raise NotImplementedError()
 
 class MLP(nn.Module):
 
-    def __init__(self, dim_in: int, dim_out: int = 10) -> None:
+    def __init__(self, hidden_sizes: list[int], dims_in: list[int], dim_out: int = 10, act: str = "relu", batch_norm: bool = False) -> None:
         super(MLP, self).__init__()
 
-        self.sequential = nn.Sequential(
-            nn.Flatten(start_dim=1),
-            nn.Linear(dim_in, 50),
-            nn.ReLU(),
-            nn.Linear(50, 10),
-            nn.ReLU(),
-            nn.Linear(10, dim_out)
-        )
+        self.sequential = nn.Sequential(nn.Flatten())
+        dim_in = np.prod(dims_in)
+
+        layer_sizes = [dim_in] + hidden_sizes
+        for i in range(len(layer_sizes) - 1):
+            d1, d2 = layer_sizes[i], layer_sizes[i + 1]
+            self.sequential.add_module(f"Linear_{i}", nn.Linear(d1, d2))
+
+            if act == "relu":
+                self.sequential.add_module(f"ReLU_{i}", nn.ReLU())
+            elif act == "sigmoid":
+                self.sequential.add_module(f"Sigmoid_{i}", nn.Sigmoid())
+            else:
+                self.sequential.add_module(f"Tanh_{i}", nn.Tanh())
+            
+            if batch_norm:
+                self.sequential.add_module(f"BatchNorm_{i}", nn.BatchNorm1d(d2, track_running_stats=False))
+        
+        # add final layer
+        self.sequential.add_module(f"Linear_{len(layer_sizes) - 1}", nn.Linear(layer_sizes[-1], dim_out))
 
     def forward(self, X):
         return self.sequential(X)
