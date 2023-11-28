@@ -60,8 +60,12 @@ if __name__=="__main__":
     beta = int(args.beta) if args.beta.is_integer() else args.beta
     DATA_DIR += f"{args.data_name}-splitted/"
     MODEL_DIR += f"{args.data_name}/"
-    goal, pre_acc = find_goal_and_val_acc(args.model_name)
-    print(f"using model with goal = {goal}, pretrained acc = {pre_acc}")
+    if args.model_name is None:
+        goal, pre_acc = 0, 0
+        print(f"data distribution beta = {args.beta}")
+    else:
+        goal, pre_acc = find_goal_and_val_acc(args.model_name)
+        print(f"using pretrained model with goal = {goal}, pretrained acc = {pre_acc}, data distribution beta = {args.beta}")
 
     # Set the device (use GPU if available)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -110,21 +114,22 @@ if __name__=="__main__":
         model_initializer = lambda: ResNet18(data_dimension)
     elif args.data_name == "fmnist":
         hidden_sizes = [512, 128]
-        model_initializer = lambda: MLP(hidden_sizes, [28, 28, 1], 10, "relu", False)
+        model_initializer = lambda: MLP(hidden_sizes, [28, 28, 1], 10, "relu", True)
     else:
         hidden_sizes = [512, 128]
-        model_initializer = lambda: MLP(hidden_sizes, [28, 28, 1], 10, "relu", False)
+        model_initializer = lambda: MLP(hidden_sizes, [28, 28, 1], 10, "relu", True)
 
     global_model = model_initializer().to(device)
     global_data_loader = DataLoader(testset, batch_size=mini_batch_size, shuffle=False)
 
-    print("loading pretrained model...")
-    state_dict = torch.load(MODEL_DIR + args.model_name)
-    global_model.load_state_dict(state_dict)
+    if args.model_name is not None:
+        print("loading pretrained model...")
+        state_dict = torch.load(MODEL_DIR + args.model_name)
+        global_model.load_state_dict(state_dict)
 
     # test its global accuracy now
     global_test_accuracy = global_testing(global_model, global_data_loader, device)
-    print(f"the pretrained model has global accuracy {global_test_accuracy}")
+    print(f"the model has global accuracy {global_test_accuracy} before training")
 
     print("Start training")
     print("Start training",file=file)
@@ -205,9 +210,9 @@ if __name__=="__main__":
     stats["Local Training Accuracy"] = stats["Local Training Accuracy"][:1] + stats["Local Training Accuracy"]  # for alignment with global acc
     df = pd.DataFrame(stats)
 
-    stats_dir = PROJ_DIR + f"stats/goal={goal}_pre-acc={pre_acc}/"
+    stats_dir = PROJ_DIR + f"stats/{args.data_name}/goal={goal}_pre-acc={pre_acc}/"
     if not os.path.exists(stats_dir):
         os.makedirs(stats_dir)
-    df.to_csv(PROJ_DIR + stats_dir + f"{result_file_name}.csv")
+    df.to_csv(stats_dir + f"{result_file_name}.csv")
 
     file.close()
