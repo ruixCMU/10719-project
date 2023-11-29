@@ -24,6 +24,7 @@ def _get_args():
     p.add_argument("--data_name", help="name of datasett", type=str, choices=["cifar10", "mnist", "fmnist"])
     p.add_argument("--beta", help="beta, the higher, the more iid, larger than 1e-2", type=float, default=1e4)
     p.add_argument("--model_name", help="name of pretrained model", type=str)
+    p.add_argument("--local_epoch", help="number of local epochs, 1 is FedSGD, >1 is FedAvg", type=int, default=5)
     p.add_argument("--partitioned", help="whether data is already partitioned", action="store_true")
     return p.parse_args()
 
@@ -86,16 +87,16 @@ if __name__=="__main__":
     learning_rate = 0.1
     momentum = 0.9
     weight_decay = 0.0001
-    local_epoch = 5
+    local_epoch = args.local_epoch
     partitioning_rate = 0.1
-    mini_batch_size = 64
+    mini_batch_size = 64 if local_epoch > 1 else 1_000_000
     num_client = 100
 
     # Set the number of rounds based on the dataset
     if data_name =='mnist' or data_name == "fmnist":
-        num_round = 50
+        num_round = 50 * (5 // local_epoch)
     elif data_name =='cifar10':
-        num_round = 100
+        num_round = 100 * (5 // local_epoch)
     
     result_file_name = f"Data-{args.data_name}_Seed-{random_seed}_Beta-{beta}_Pretrained-[{args.model_name}]_" +\
         f"lr-{learning_rate}_LocalEpoch-{local_epoch}_ClientRatio-{partitioning_rate}_BatchSize-{mini_batch_size}" +\
@@ -210,7 +211,7 @@ if __name__=="__main__":
     stats["Local Training Accuracy"] = stats["Local Training Accuracy"][:1] + stats["Local Training Accuracy"]  # for alignment with global acc
     df = pd.DataFrame(stats)
 
-    stats_dir = PROJ_DIR + f"stats/{args.data_name}/goal={goal}_pre-acc={pre_acc}/"
+    stats_dir = PROJ_DIR + f"stats/{args.data_name}/LocalEpoch-{local_epoch}/goal={goal}_pre-acc={pre_acc}/"
     if not os.path.exists(stats_dir):
         os.makedirs(stats_dir)
     df.to_csv(stats_dir + f"{result_file_name}.csv")

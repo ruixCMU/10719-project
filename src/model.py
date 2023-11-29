@@ -176,7 +176,7 @@ class VGG(nn.Module):
 
     def __init__(self, dims_in, archs, num_classes, mlp_hiddens) -> None:
         super(VGG, self).__init__()
-        
+
         in_channels, W, H = dims_in
 
         vgg_blks = []
@@ -192,7 +192,7 @@ class VGG(nn.Module):
     def forward(self, X):
         return self.fc(self.vgg(X))
 
-def vgg(num_blks: int, dims_in: tuple[int], mlp_hiddens: list[int]) -> VGG:    
+def vgg(num_blks: int, dims_in: tuple[int], num_classes: int, mlp_hiddens: list[int]) -> VGG:    
     archs = []
     for i in range(num_blks):
         archs.append((2 ** (4+i), 2))

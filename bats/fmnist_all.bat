@@ -14,6 +14,6 @@ SET "num_models=8"
 @ECHO on
 for %%b in (0.001 0.01 0.1 1 10 100 1000 10000) do (
     for /L %%i in (0, 1, %num_models%) do (
-        python ../main.py --data_name fmnist --beta %%b --model_name "!model_names[%%i]!"
+        python ../main.py --data_name fmnist --beta %%b --local_epoch 1 --model_name "!model_names[%%i]!" --partitioned
     )
 )
