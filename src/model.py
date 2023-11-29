@@ -153,3 +153,47 @@ class MLP(nn.Module):
 
     def forward(self, X):
         return self.sequential(X)
+    
+
+class VGGBlock(nn.Module):
+
+    def __init__(self, in_channels, out_channels, num_convs):
+        super(VGGBlock, self).__init__()
+
+        layers = []
+        for _ in range(num_convs):
+            layers.append(nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1))
+            layers.append(nn.ReLU())
+            in_channels = out_channels
+        
+        layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
+        self.sequential = nn.Sequential(*layers)
+    
+    def forward(self, X):
+        return self.sequential(X)
+
+class VGG(nn.Module):
+
+    def __init__(self, dims_in, archs, num_classes, mlp_hiddens) -> None:
+        super(VGG, self).__init__()
+        
+        in_channels, W, H = dims_in
+
+        vgg_blks = []
+        for out_channels, num_convs in archs:
+            vgg_blks.append(VGGBlock(in_channels, out_channels, num_convs))
+            in_channels = out_channels
+            W, H = W // 2, H // 2
+        self.vgg = nn.Sequential(*vgg_blks)
+        
+        dims_in = (in_channels, W, H)
+        self.fc = MLP(mlp_hiddens, dims_in, num_classes)
+    
+    def forward(self, X):
+        return self.fc(self.vgg(X))
+
+def vgg(num_blks: int, dims_in: tuple[int], mlp_hiddens: list[int]) -> VGG:    
+    archs = []
+    for i in range(num_blks):
+        archs.append((2 ** (4+i), 2))
+    return VGG(dims_in, archs, 10, mlp_hiddens)
