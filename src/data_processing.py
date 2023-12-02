@@ -73,7 +73,10 @@ def data_split(dataset, data_distribution):
 
     return client_data_indices
 
-def data_split_iidness(dataset, beta, num_clients):
+def data_split_iidness(dataset, beta, num_clients, case):
+    """
+    :param case: case = 1: approximately same number each client; case = 2: some clients get 10 times less data
+    """
     y_train = torch.from_numpy(np.array(dataset.targets))
     num_classes = torch.unique(y_train).shape[0]
 
@@ -85,16 +88,20 @@ def data_split_iidness(dataset, beta, num_clients):
     num_each_client = len(dataset) // num_clients
     for k in range(num_clients):
         # arange num_each_client data into each clients
-        clients_data_indices.append(data_indices[k * num_each_client: \
-                                              (k + 1) * num_each_client])
-    clients_data_indices = torch.from_numpy(np.array(clients_data_indices))
+        num_this = num_each_client
+        if case == 2 and np.random.uniform(0,1,1)[0] > 0.5:
+            num_this //= 2
+        clients_data_indices.append(data_indices[k * num_this: (k + 1) * num_this])
+
+
+    # clients_data_indices = torch.from_numpy(np.array(clients_data_indices))
 
     # this is the data after splitting and sampling
     splitted_client_indices = []
 
     # min_size = float("inf") # truncation, the size of each client can be different due to round up and randomness
     for client_id in range(num_clients):
-        client_data_indices = clients_data_indices[client_id]
+        client_data_indices = torch.from_numpy(np.array(clients_data_indices[client_id]))
         # the targets of thie client
         y_client = y_train[client_data_indices]
         # beta sample, higher beta lead to more averaged number of classes
@@ -138,14 +145,14 @@ def data_split_iidness(dataset, beta, num_clients):
     # return torch.from_numpy(splitted_client_indices)
     return splitted_client_indices
 
-def split_and_store(dataset, beta, num_clients, data_dir):
+def split_and_store(dataset, beta, num_clients, data_dir, case):
     # store the data for each client into a .npy file
-    data_dir += f"Beta-{int(beta) if beta.is_integer() else beta}/"
+    data_dir += f"case{case}/Beta-{int(beta) if beta.is_integer() else beta}/"
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
 
     # get the splitted indices
-    splitted_client_indices = data_split_iidness(dataset, beta, num_clients)
+    splitted_client_indices = data_split_iidness(dataset, beta, num_clients, case)
     y_dataset = np.array(dataset.targets, dtype=np.int64)   # get labels of the dataset, in case cifar10 targets is a list
     for client_id in tqdm(range(num_clients)):
         client_indices = splitted_client_indices[client_id]

@@ -25,6 +25,8 @@ def _get_args():
     p.add_argument("--beta", help="beta, the higher, the more iid, larger than 1e-2", type=float, default=1e4)
     p.add_argument("--model_name", help="name of pretrained model", type=str)
     p.add_argument("--local_epoch", help="number of local epochs, 1 is FedSGD, >1 is FedAvg", type=int, default=5)
+    p.add_argument("--case", help="case of clients", type=int, default=1)
+    p.add_argument("--num_clients", help="number of clients", type=int, default=100)
     p.add_argument("--partitioned", help="whether data is already partitioned", action="store_true")
     return p.parse_args()
 
@@ -90,7 +92,7 @@ if __name__=="__main__":
     local_epoch = args.local_epoch
     partitioning_rate = 0.1
     mini_batch_size = 64 if local_epoch > 1 else 1_000_000
-    num_client = 100
+    num_client = args.num_clients
 
     # Set the number of rounds based on the dataset
     if data_name =='mnist' or data_name == "fmnist":
@@ -106,7 +108,7 @@ if __name__=="__main__":
     # Load data
     trainset, testset, data_dimension = load_data(data_name)
     if not args.partitioned:
-        split_and_store(trainset, args.beta, num_client, data_dir=DATA_DIR)
+        split_and_store(trainset, args.beta, num_client, data_dir=DATA_DIR, case=args.case)
 
     # Initialize global model
     
@@ -162,7 +164,7 @@ if __name__=="__main__":
                 # client_data_idxs = client_data_indices[client_idx]
                 # selected_clients_data_num.append(len(client_data_idxs))
                 # client_data = Subset(trainset, client_data_idxs)
-                client_data_np = np.load(DATA_DIR + f"Beta-{beta}/" + f"client_{client_idx}.npz")
+                client_data_np = np.load(DATA_DIR + f"case{args.case}/Beta-{beta}/" + f"client_{client_idx}.npz")
                 client_data = MyDataset(torch.from_numpy(client_data_np["X"]), torch.from_numpy(client_data_np["y"]))
                 selected_clients_data_num.append(len(client_data))
                 client_data_loader = DataLoader(client_data, batch_size=mini_batch_size, shuffle=True)
@@ -211,7 +213,7 @@ if __name__=="__main__":
     stats["Local Training Accuracy"] = stats["Local Training Accuracy"][:1] + stats["Local Training Accuracy"]  # for alignment with global acc
     df = pd.DataFrame(stats)
 
-    stats_dir = PROJ_DIR + f"stats/{args.data_name}/LocalEpoch-{local_epoch}/goal={goal}_pre-acc={pre_acc}/"
+    stats_dir = PROJ_DIR + f"stats/{args.data_name}/case{args.case}/LocalEpoch-{local_epoch}/goal={goal}_pre-acc={pre_acc}/"
     if not os.path.exists(stats_dir):
         os.makedirs(stats_dir)
     df.to_csv(stats_dir + f"{result_file_name}.csv")

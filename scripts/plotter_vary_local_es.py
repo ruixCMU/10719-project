@@ -4,7 +4,7 @@ import os
 import pandas as pd
 
 PROJ_DIR = "C:/Users/ruix/Desktop/10719/proj/10719-project/"
-STATS_DIR = PROJ_DIR + "stats/fmnist/"
+STATS_DIR = PROJ_DIR + "stats/fmnist/case1/"
 
 def get_beta(file_name: str) -> float:
     idx1 = file_name.index("Beta-") + 5
@@ -52,6 +52,7 @@ if __name__ == "__main__":
             for local_epochs in df_dict[pre_acc][beta].keys():
                 global_accs = df_dict[pre_acc][beta][local_epochs]
                 x_space = np.linspace(0, 50, len(global_accs))
+                # x_space = np.arange(0, 50)
                 plt.plot(x_space, global_accs, label=f"local epochs = {local_epochs}")
 
             plt.xlabel("time")
