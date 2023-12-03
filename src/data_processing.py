@@ -93,7 +93,6 @@ def data_split_iidness(dataset, beta, num_clients, case):
             num_this //= 2
         clients_data_indices.append(data_indices[k * num_this: (k + 1) * num_this])
 
-
     # clients_data_indices = torch.from_numpy(np.array(clients_data_indices))
 
     # this is the data after splitting and sampling

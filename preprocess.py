@@ -38,6 +38,7 @@ def _get_args():
     p = argparse.ArgumentParser()
     # Define command-line arguments
     p.add_argument("--data_name", help="data_name", type=str, default="cifar10")
+    p.add_argument("--case", help="client split case", type=int, choices=[1, 2], default=1)
     p.add_argument("--beta", help="beta, the higher, the more iid, larger than 1e-2", type=float, default=1e4)
     return p.parse_args()
 
@@ -45,7 +46,7 @@ if __name__ == "__main__":
     args = _get_args()
     trainset, testset, data_dimension = load_data(args.data_name)
     num_clients = 100
-    split_and_store(trainset, args.beta, num_clients, data_dir=f"D:/DATA/{args.data_name}-splitted/")
+    split_and_store(trainset, args.beta, num_clients, f"D:/DATA/{args.data_name}-splitted/", args.case)
 
-    min_min, max_max = sanity_check(f"D:/DATA/{args.data_name}-splitted/Beta-{int(args.beta) if args.beta.is_integer() else args.beta}/")
+    min_min, max_max = sanity_check(f"D:/DATA/{args.data_name}-splitted/case{args.case}/Beta-{int(args.beta) if args.beta.is_integer() else args.beta}/")
     print(min_min, max_max)

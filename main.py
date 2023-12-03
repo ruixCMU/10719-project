@@ -11,7 +11,7 @@ from tqdm import tqdm
 import pandas as pd
 import os
 
-from src.aggregation import fedavg
+from src.aggregation import *
 from src.data_processing import load_data, data_split, split_and_store
 from src.model import ResNet18, MLP
 from src.training import local_training
@@ -22,9 +22,10 @@ def _get_args():
     # Define command-line arguments
     p.add_argument("--seed", help="seed", type=int, default=0)
     p.add_argument("--data_name", help="name of datasett", type=str, choices=["cifar10", "mnist", "fmnist"])
+    p.add_argument("--aggregation", help="name of aggregation method", type=str, choices=["FedSGD", "FedAvg", "FedAdaGrad", "FedYogi", "FedAdam"], default="FedAvg")
     p.add_argument("--beta", help="beta, the higher, the more iid, larger than 1e-2", type=float, default=1e4)
     p.add_argument("--model_name", help="name of pretrained model", type=str)
-    p.add_argument("--local_epoch", help="number of local epochs, 1 is FedSGD, >1 is FedAvg", type=int, default=5)
+    p.add_argument("--local_epoch", help="number of local epochs", type=int, default=5)
     p.add_argument("--case", help="case of clients", type=int, default=1)
     p.add_argument("--num_clients", help="number of clients", type=int, default=100)
     p.add_argument("--partitioned", help="whether data is already partitioned", action="store_true")
@@ -65,10 +66,10 @@ if __name__=="__main__":
     MODEL_DIR += f"{args.data_name}/"
     if args.model_name is None:
         goal, pre_acc = 0, 0
-        print(f"data distribution beta = {args.beta}")
+        print(f"data distribution beta = {beta}, aggregation {args.aggregation}")
     else:
         goal, pre_acc = find_goal_and_val_acc(args.model_name)
-        print(f"using pretrained model with goal = {goal}, pretrained acc = {pre_acc}, data distribution beta = {args.beta}")
+        print(f"using pretrained model with goal = {goal}, pretrained acc = {pre_acc}, data distribution beta = {beta}, aggregation {args.aggregation}")
 
     # Set the device (use GPU if available)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -100,8 +101,7 @@ if __name__=="__main__":
     elif data_name =='cifar10':
         num_round = 100 * (5 // local_epoch)
     
-    result_file_name = f"Data-{args.data_name}_Seed-{random_seed}_Beta-{beta}_Pretrained-[{args.model_name}]_" +\
-        f"lr-{learning_rate}_LocalEpoch-{local_epoch}_ClientRatio-{partitioning_rate}_BatchSize-{mini_batch_size}" +\
+    result_file_name = f"Beta-{beta}_" +f"lr-{learning_rate}_ClientRatio-{partitioning_rate}_BatchSize-{mini_batch_size}" +\
         f"NumClient-{num_client}"
     file =  open(PROJ_DIR + fr"result/{result_file_name}.txt", 'w')
     
@@ -124,6 +124,28 @@ if __name__=="__main__":
 
     global_model = model_initializer().to(device)
     global_data_loader = DataLoader(testset, batch_size=mini_batch_size, shuffle=False)
+
+    if args.aggregation == "FedSGD":
+        aggregator = FedAvg()
+        local_epoch = 1
+        B = len(trainset) * num_client  # make sure B = in----finite
+    elif args.aggregation == "FedAvg":
+        aggregator = FedAvg()
+    else:
+        params = {
+            "beta1": 0.9,
+            "beta2": 0.99,
+            "eta": 0.01 if beta < 1 else 0.1,
+            "tor": 1e-3,
+            "params": global_model.state_dict()
+        }
+        if args.aggregation == "FedAdam":
+            aggregator = FedAdam(**params)
+        elif args.aggregation == "FedAdaGrad":
+            aggregator = FedAdaGrad(**params)
+        elif args.aggregation == "FedYogi":
+            aggregator = FedYogi(**params)
+        else: raise NotImplementedError()
 
     if args.model_name is not None:
         print("loading pretrained model...")
@@ -175,7 +197,8 @@ if __name__=="__main__":
                 local_weights.append(copy.deepcopy(local_model.state_dict()))
                 
             # Aggregate local models to update the global model
-            global_weight = fedavg(local_weights,selected_clients_data_num)
+            # global_weight = fedavg(local_weights,selected_clients_data_num)
+            global_weight = aggregator(global_weight, local_weights, selected_clients_data_num)
             global_model.load_state_dict(global_weight)
             # Test the global model
             global_test_accuracy = global_testing(global_model, global_data_loader, device)
@@ -213,7 +236,7 @@ if __name__=="__main__":
     stats["Local Training Accuracy"] = stats["Local Training Accuracy"][:1] + stats["Local Training Accuracy"]  # for alignment with global acc
     df = pd.DataFrame(stats)
 
-    stats_dir = PROJ_DIR + f"stats/{args.data_name}/case{args.case}/LocalEpoch-{local_epoch}/goal={goal}_pre-acc={pre_acc}/"
+    stats_dir = PROJ_DIR + f"stats/{args.aggregation}/{args.data_name}/case{args.case}/LocalEpoch-{local_epoch}/goal={goal}_pre-acc={pre_acc}/"
     if not os.path.exists(stats_dir):
         os.makedirs(stats_dir)
     df.to_csv(stats_dir + f"{result_file_name}.csv")
