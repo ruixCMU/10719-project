@@ -26,4 +26,6 @@ python pretrain.py --data_name fmnist --goal [accuracy you want] --max_epochs [m
 
 This will generate model in `models/` folder.
 
-What is more, you could tune the hyper-parameters in each file as you wish. Thank you very much!
+You could also tune the hyper-parameters in each file as you wish. Thank you very much!
+
+**Last but not least**, many thanks to **Jong-Ik Park**. His code helped me a lot in working on this project.
