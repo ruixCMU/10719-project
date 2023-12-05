@@ -8,7 +8,7 @@ STATS_DIR = PROJ_DIR + "stats/FedAvg/fmnist/"
 
 dir_suffix = "/IID-Ratio-0.0/LocalEpoch-5/"
 pretraineds = ["goal=0.3_pre-acc=0.2916/", "goal=0.6_pre-acc=0.5908/", "goal=0.9_pre-acc=0.8917/"]
-file_names = ["Beta-10000_lr-0.001_ClientRatio-0.1_BatchSize-64_NumClient-100.csv", "Beta-0.01_lr-0.001_ClientRatio-0.1_BatchSize-64_NumClient-100.csv"]
+file_names = ["Beta-10000_lr-0.1_ClientRatio-0.1_BatchSize-64_NumClient-100.csv", "Beta-0.01_lr-0.1_ClientRatio-0.1_BatchSize-64_NumClient-100.csv"]
 
 def get_beta(file_name: str) -> float:
     idx1 = file_name.index("Beta-") + 5
