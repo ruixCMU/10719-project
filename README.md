@@ -17,6 +17,7 @@ This wil give you plots in the `plots/experiment[i]/` folder.
 
 **Note** I had just re-organized the directory and some coding files, if there are any bugs, please let me know and allow me a bit time to fix it. Sorry for that.
 
+## Pretrain
 The pretrained models are in [Google Drive](https://drive.google.com/file/d/1ZpijGdyOhHzn7MyiNt1NfEYDfE_l_O3k/view?usp=sharing). If you want to pretrain them by yourself, you could use the following code:
 
 ```
@@ -26,6 +27,7 @@ python pretrain.py --data_name fmnist --goal [accuracy you want] --max_epochs [m
 
 This will generate model in `models/` folder.
 
+## Others
 You could also tune the hyper-parameters in each file as you wish. Thank you very much!
 
 **Last but not least**, many thanks to **Jong-Ik Park**. His code helped me a lot in working on this project.
