@@ -9,7 +9,7 @@ Fed_Adam_DIR = DATA_DIR + "FedAdam/fmnist/case1/"
 Fed_Avg_DIR = DATA_DIR + "FedAvg/fmnist/case1/"
 iid_ratios = ["IID-Ratio-0.2", "IID-Ratio-0.4", "IID-Ratio-0.6", "IID-Ratio-0.8"]
 
-dir_suffix = "/LocalEpoch-5/goal=0.5_pre-acc=0.4923/Beta-0.001_lr-0.001_ClientRatio-0.1_BatchSize-64_NumClient-100.csv"
+dir_suffix = "/LocalEpoch-5/goal=0.5_pre-acc=0.4923/Beta-0.001_lr-0.1_ClientRatio-0.1_BatchSize-64_NumClient-100.csv"
 
 def get_attr(file_name, attr_name):
     idx1 = file_name.index(attr_name) + len(attr_name) + 1
