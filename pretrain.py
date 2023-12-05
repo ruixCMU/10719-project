@@ -58,6 +58,8 @@ if __name__ == "__main__":
         model_name += f"{args.vgg_blocks}"
         model = vgg(args.vgg_blocks, dims_in, 10, args.mlp_hidden)
     
+    # print(summary(model, dims_in))
+
     lr = 0.001
     momentum = 0.9
     weight_decay = 0.0001

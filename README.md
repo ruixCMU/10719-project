@@ -3,6 +3,22 @@
 ## where is the report?
 The report is in the root directory, named `10719_Project_Report.pdf`
 
+## Environment Install
+Please change the name in the first line of `requirements.yml` (otherwise I believe this will change your default env) and then run:
+
+```
+conda env create -f requirements.yml
+```
+
+to create an Anaconda environment for you to run my code. I have to apologize for not being familiar with how to describe my environment more briefly. In fact, I think installing:
+1. torch==2.0.1 with CUDA (w/o is also OK, but will be slow)
+2. numpy ==1.26.1
+3. pandas==1.5.3
+4. tqdm==4.65.0
+5. torchsummary==1.5.1 (this is not necessary but can help you visualize the model)
+
+would be enough.
+
 ## Running Experiments
 There are four experiments in the report (1-4), corresponding to Figures 2-5, respectively. To run experiment `i`, please:
 
