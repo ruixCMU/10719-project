@@ -1,4 +1,5 @@
 result/*
 models/*
 stats/*
+plots/*
 src/__pycache__/*

@@ -12,7 +12,7 @@ import pandas as pd
 import os
 
 from src.aggregation import *
-from src.data_processing import load_data, data_split, split_and_store
+from src.data_processing import load_data, data_split, split_and_store, MyDataset
 from src.model import ResNet18, MLP
 from src.training import local_training
 from src.testing import global_testing
@@ -20,7 +20,6 @@ from src.testing import global_testing
 def _get_args():
     p = argparse.ArgumentParser()
     # Define command-line arguments
-    p.add_argument("--seed", help="seed", type=int, default=0)
     p.add_argument("--data_name", help="name of datasett", type=str, choices=["cifar10", "mnist", "fmnist"])
     p.add_argument("--aggregation", help="name of aggregation method", type=str, choices=["FedSGD", "FedAvg", "FedAdaGrad", "FedYogi", "FedAdam"], default="FedAvg")
     p.add_argument("--beta", help="beta, the higher, the more iid, larger than 1e-2", type=float, default=1e4)
@@ -28,10 +27,13 @@ def _get_args():
     p.add_argument("--local_epoch", help="number of local epochs", type=int, default=5)
     p.add_argument("--case", help="case of clients", type=int, default=1)
     p.add_argument("--num_clients", help="number of clients", type=int, default=100)
-    p.add_argument("--partitioned", help="whether data is already partitioned", action="store_true")
+    p.add_argument("--num_rounds", help="number of rounds on server", type=int, default=50)
+    p.add_argument("--ratio_mixed_iid", help="ratio of clients that are completely iid", type=float, default=0.)
+    p.add_argument("--partitioned", help="whether data is already partitioned, only if ratio_mixed_iid is 0.0", action="store_true")
     return p.parse_args()
 
 def find_goal_and_val_acc(model_name: str) -> tuple[float, float]:
+    # helper function to parse goal and final validation accuracy from model name
     idx1 = model_name.index("goal=") + len("goal=")
     idx2 = model_name[idx1:].index("_")
     goal = float(model_name[idx1:idx1+idx2])
@@ -44,75 +46,51 @@ DATA_DIR = "D:/DATA/"
 PROJ_DIR = "C:/Users/ruix/Desktop/10719/proj/10719-project/"
 MODEL_DIR = PROJ_DIR + "models/"
 
-class MyDataset(Dataset):
-
-    def __init__(self, X, y) -> None:
-        super().__init__()
-        self.X = X
-        self.y = y
-    
-    def __getitem__(self, index):
-        return (self.X[index], self.y[index])
-    
-    def __len__(self):
-        return self.X.shape[0]
-
 if __name__=="__main__":
     args = _get_args() # Parse command-line arguments
-    random_seed = args.seed
     data_name = args.data_name
     beta = int(args.beta) if args.beta.is_integer() else args.beta
+
     DATA_DIR += f"{args.data_name}-splitted/"
     MODEL_DIR += f"{args.data_name}/"
     if args.model_name is None:
         goal, pre_acc = 0, 0
-        print(f"data distribution beta = {beta}, aggregation {args.aggregation}")
+        print(f"data distribution beta = {beta}, aggregation {args.aggregation}, num rounds {args.num_rounds}")
     else:
         goal, pre_acc = find_goal_and_val_acc(args.model_name)
-        print(f"using pretrained model with goal = {goal}, pretrained acc = {pre_acc}, data distribution beta = {beta}, aggregation {args.aggregation}")
+        print(f"using pretrained model with goal = {goal}, pretrained acc = {pre_acc}, data distribution beta = {beta}, aggregation {args.aggregation}, num rounds {args.num_rounds}")
 
     # Set the device (use GPU if available)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Create a file to write results
-    # result_file_name = 'Data-'+data_name+'_'+'Seed-'+str(random_seed)+"_"+"Beta-"+str(beta)
-    # file =  open(PROJ_DIR + 'result/'+result_file_name+".txt", 'w')
-
     # Set random seeds for reproducibility
-    np.random.seed(random_seed)
-    torch.manual_seed(random_seed)
-    random.seed(random_seed)
+    np.random.seed(200)
+    torch.manual_seed(200)
+    random.seed(200)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    torch.cuda.manual_seed_all(random_seed)
+    torch.cuda.manual_seed_all(200)
 
     # Hyperparameters
-    learning_rate = 0.1
+    learning_rate = 0.001
     momentum = 0.9
     weight_decay = 0.0001
     local_epoch = args.local_epoch
     partitioning_rate = 0.1
-    mini_batch_size = 64 if local_epoch > 1 else 1_000_000
+    mini_batch_size = 64
     num_client = args.num_clients
-
-    # Set the number of rounds based on the dataset
-    if data_name =='mnist' or data_name == "fmnist":
-        num_round = 50 * (5 // local_epoch)
-    elif data_name =='cifar10':
-        num_round = 100 * (5 // local_epoch)
+    num_round = args.num_rounds
     
-    result_file_name = f"Beta-{beta}_" +f"lr-{learning_rate}_ClientRatio-{partitioning_rate}_BatchSize-{mini_batch_size}" +\
+    result_file_name = f"Beta-{beta}_" +f"lr-{learning_rate}_ClientRatio-{partitioning_rate}_BatchSize-{mini_batch_size}_" +\
         f"NumClient-{num_client}"
-    file =  open(PROJ_DIR + fr"result/{result_file_name}.txt", 'w')
     
     # Load data
     trainset, testset, data_dimension = load_data(data_name)
+    iid_clients = []
     if not args.partitioned:
-        split_and_store(trainset, args.beta, num_client, data_dir=DATA_DIR, case=args.case)
+        iid_clients = split_and_store(trainset, args.beta, num_client, data_dir=DATA_DIR, case=args.case, iid_ratio=args.ratio_mixed_iid)
 
     # Initialize global model
-    
-    # global_model = ResNet18(data_dimension).to(device)
     if args.data_name == "cifar10":
         model_initializer = lambda: ResNet18(data_dimension)
     elif args.data_name == "fmnist":
@@ -125,6 +103,7 @@ if __name__=="__main__":
     global_model = model_initializer().to(device)
     global_data_loader = DataLoader(testset, batch_size=mini_batch_size, shuffle=False)
 
+    # choose the aggregation methods
     if args.aggregation == "FedSGD":
         aggregator = FedAvg()
         local_epoch = 1
@@ -135,7 +114,7 @@ if __name__=="__main__":
         params = {
             "beta1": 0.9,
             "beta2": 0.99,
-            "eta": 0.01 if beta < 1 else 0.1,
+            "eta": 0.01,
             "tor": 1e-3,
             "params": global_model.state_dict()
         }
@@ -147,6 +126,7 @@ if __name__=="__main__":
             aggregator = FedYogi(**params)
         else: raise NotImplementedError()
 
+    # if no pretrained model is provided.
     if args.model_name is not None:
         print("loading pretrained model...")
         state_dict = torch.load(MODEL_DIR + args.model_name)
@@ -157,7 +137,6 @@ if __name__=="__main__":
     print(f"the model has global accuracy {global_test_accuracy} before training")
 
     print("Start training")
-    print("Start training",file=file)
 
     stats = {
         "Global Testing Accuracy": [global_test_accuracy],
@@ -172,8 +151,13 @@ if __name__=="__main__":
             selected_clients_data_num = []
 
             # Randomly select clients to participate in each round
+            client_size = int(partitioning_rate * num_client)
+            num_non_iid = int(np.round(client_size * (1 - args.ratio_mixed_iid)))
             active_clients_idxs = np.random.choice(range(num_client),
-                                                size=int(partitioning_rate*num_client), replace=False)
+                                                size=num_non_iid, replace=False)
+            if len(iid_clients):
+                active_clients_idxs = np.concatenate((active_clients_idxs, np.random.choice(iid_clients, 
+                                                    size=client_size-num_non_iid, replace=False)), axis=0)
             for client_idx in active_clients_idxs:
                 # local_model = ResNet18(data_dimension).to(device)
                 local_model = model_initializer().to(device)
@@ -183,10 +167,7 @@ if __name__=="__main__":
                     local_weight[key] = global_weight[key]
                 local_model.load_state_dict(local_weight)
                 # Prepare client data
-                # client_data_idxs = client_data_indices[client_idx]
-                # selected_clients_data_num.append(len(client_data_idxs))
-                # client_data = Subset(trainset, client_data_idxs)
-                client_data_np = np.load(DATA_DIR + f"case{args.case}/Beta-{beta}/" + f"client_{client_idx}.npz")
+                client_data_np = np.load(DATA_DIR + f"case{args.case}/IID-Ratio-{args.ratio_mixed_iid}/Beta-{beta}/" + f"client_{client_idx}.npz")
                 client_data = MyDataset(torch.from_numpy(client_data_np["X"]), torch.from_numpy(client_data_np["y"]))
                 selected_clients_data_num.append(len(client_data))
                 client_data_loader = DataLoader(client_data, batch_size=mini_batch_size, shuffle=True)
@@ -197,7 +178,6 @@ if __name__=="__main__":
                 local_weights.append(copy.deepcopy(local_model.state_dict()))
                 
             # Aggregate local models to update the global model
-            # global_weight = fedavg(local_weights,selected_clients_data_num)
             global_weight = aggregator(global_weight, local_weights, selected_clients_data_num)
             global_model.load_state_dict(global_weight)
             # Test the global model
@@ -212,33 +192,16 @@ if __name__=="__main__":
             pbar.set_postfix(**pf)
             pbar.update(1)
 
-            # Print and write results
-            # print("-------------------")
-            # print(f"Round [{round+1}/{num_round}]")
-            # print(f"Local Training Accuracy: {np.mean(local_train_accuracies):.3f}")
-            # print(f"Global Testing Accuracy: GAcc: {global_test_accuracy:.3f}")
-            # print(f"Time: {(time.time()-current_time):.3f}")
-
-            print("-------------------",file=file)
-            print(f"Round [{round+1}/{num_round}]",file=file)
-            print(f"Local Training Accuracy: {np.mean(local_train_accuracies):.3f}",file=file)
-            print(f"Global Testing Accuracy: GAcc: {global_test_accuracy:.3f}",file=file)
-            print(f"Time: {(time.time()-current_time):.3f}",file=file)
-
             stats["Global Testing Accuracy"].append(global_test_accuracy)
             stats["Local Training Accuracy"].append(np.mean(local_train_accuracies))
 
     print("-------------------")
     print("Finish training")
-    print("-------------------",file=file)
-    print("Finish training",file=file)
 
     stats["Local Training Accuracy"] = stats["Local Training Accuracy"][:1] + stats["Local Training Accuracy"]  # for alignment with global acc
     df = pd.DataFrame(stats)
 
-    stats_dir = PROJ_DIR + f"stats/{args.aggregation}/{args.data_name}/case{args.case}/LocalEpoch-{local_epoch}/goal={goal}_pre-acc={pre_acc}/"
+    stats_dir = PROJ_DIR + f"stats/{args.aggregation}/{args.data_name}/case{args.case}/IID-Ratio-{args.ratio_mixed_iid}/LocalEpoch-{local_epoch}/goal={goal}_pre-acc={pre_acc}/"
     if not os.path.exists(stats_dir):
         os.makedirs(stats_dir)
     df.to_csv(stats_dir + f"{result_file_name}.csv")
-
-    file.close()

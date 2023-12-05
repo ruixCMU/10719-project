@@ -1,6 +1,6 @@
 import torch
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, Dataset
 import numpy as np
 
 from tqdm import tqdm
@@ -8,6 +8,21 @@ from tqdm import tqdm
 import os
 
 DATA_PATH = "D:/DATA/"
+GREAT_BETA = 10_000
+
+# this helper class is just for reading the client data out
+class MyDataset(Dataset):
+
+    def __init__(self, X, y) -> None:
+        super().__init__()
+        self.X = X
+        self.y = y
+    
+    def __getitem__(self, index):
+        return (self.X[index], self.y[index])
+    
+    def __len__(self):
+        return self.X.shape[0]
 
 def load_data(name_data):
     if name_data == 'cifar10':
@@ -73,12 +88,11 @@ def data_split(dataset, data_distribution):
 
     return client_data_indices
 
-def data_split_iidness(dataset, beta, num_clients, case):
+def data_split_iidness(dataset, beta, num_clients, case, iid_ratio):
     """
     :param case: case = 1: approximately same number each client; case = 2: some clients get 10 times less data
     """
     y_train = torch.from_numpy(np.array(dataset.targets))
-    num_classes = torch.unique(y_train).shape[0]
 
     # shuffle the data indices
     data_indices = np.arange(len(dataset))
@@ -98,18 +112,26 @@ def data_split_iidness(dataset, beta, num_clients, case):
     # this is the data after splitting and sampling
     splitted_client_indices = []
 
+    iid_client_ids = []
+
     # min_size = float("inf") # truncation, the size of each client can be different due to round up and randomness
     for client_id in range(num_clients):
         client_data_indices = torch.from_numpy(np.array(clients_data_indices[client_id]))
         # the targets of thie client
         y_client = y_train[client_data_indices]
+        client_classes = num_classes = torch.unique(y_train)
+        num_classes = client_classes.shape[0]
         # beta sample, higher beta lead to more averaged number of classes
-        labels_distribution = np.random.dirichlet(np.repeat(beta, num_classes))
+        if np.random.uniform(0, 1, 1)[0] > iid_ratio:
+            labels_distribution = np.random.dirichlet(np.repeat(beta, num_classes))
+        else:
+            labels_distribution = np.random.dirichlet(np.repeat(GREAT_BETA, num_classes))
+            iid_client_ids.append(client_id)
         # print(np.argmax(labels_distribution))
 
         # indices of data after beta sampling for each client
         sampled_client_data_indices = None
-        for label in range(num_classes):
+        for label in client_classes:
             # how many samples are there for each label? 
             num_labels = int(np.round(num_each_client * labels_distribution[label]))
             y_client_label_iis = torch.where(y_client == label)[0]  # where are those labels. they are indices of indices for original dataset
@@ -142,16 +164,77 @@ def data_split_iidness(dataset, beta, num_clients, case):
     # truncate them so that each client has the same number of datas
     # splitted_client_indices = np.array([a[:min_size] for a in splitted_client_indices])
     # return torch.from_numpy(splitted_client_indices)
-    return splitted_client_indices
+    return splitted_client_indices, iid_client_ids
 
-def split_and_store(dataset, beta, num_clients, data_dir, case):
+# def data_split_iidness(dataset, beta, num_clients, case, iid_ratio):
+#     """
+#     :param case: case = 1: approximately same number each client; case = 2: some clients get 10 times less data
+#     """
+#     y_train = torch.from_numpy(np.array(dataset.targets))
+#     num_classes = torch.unique(y_train).shape[0]
+
+#     # shuffle the data indices
+#     data_indices = np.arange(len(dataset))
+#     np.random.shuffle(data_indices)
+
+#     num_each_client = len(dataset) // num_clients
+
+#     # clients_data_indices = torch.from_numpy(np.array(clients_data_indices))
+
+#     # this is the data after splitting and sampling
+#     splitted_client_indices = []
+
+#     iid_client_ids = []
+
+#     # min_size = float("inf") # truncation, the size of each client can be different due to round up and randomness
+#     for client_id in range(num_clients):
+#         # beta sample, higher beta lead to more averaged number of classes
+#         if np.random.uniform(0, 1, 1)[0] > iid_ratio:
+#             labels_distribution = np.random.dirichlet(np.repeat(beta, num_classes))
+#         else:
+#             labels_distribution = np.random.dirichlet(np.repeat(GREAT_BETA, num_classes))
+#             iid_client_ids.append(client_id)
+#             print(iid_client_ids)
+#         # print(np.argmax(labels_distribution))
+#         num_this = num_each_client
+#         if case == 2 and np.random.uniform(0, 1, 1)[0] > 0.5:
+#             num_this //= 2
+
+#         # indices of data after beta sampling for each client
+#         sampled_client_data_indices = None
+#         for label in range(num_classes):
+#             # how many samples are there for each label? 
+#             num_labels = int(np.round(num_this * labels_distribution[label]))
+#             y_label_idxs = torch.where(y_train == label)[0]  # where are those labels. they are indices of indices for original dataset
+#             y_client_label_is = torch.from_numpy(np.random.choice(y_label_idxs, num_labels, replace=False))
+
+#             # concatenate them into the indices for dataset in each sample
+#             if sampled_client_data_indices == None:
+#                 sampled_client_data_indices = y_client_label_is
+#             else:
+#                 sampled_client_data_indices = torch.concat([sampled_client_data_indices, y_client_label_is], dim=0)
+        
+#         # randomly permute them
+#         n_ids = sampled_client_data_indices.shape[0]
+#         sampled_client_data_indices = sampled_client_data_indices[torch.randperm(n_ids)]
+
+#         # split for this client is done
+#         splitted_client_indices.append(sampled_client_data_indices.numpy())
+#         # min_size = min(min_size, sampled_client_data_indices.shape[0])
+    
+#     # truncate them so that each client has the same number of datas
+#     # splitted_client_indices = np.array([a[:min_size] for a in splitted_client_indices])
+#     # return torch.from_numpy(splitted_client_indices)
+#     return splitted_client_indices, iid_client_ids
+
+def split_and_store(dataset, beta, num_clients, data_dir, case, iid_ratio):
     # store the data for each client into a .npy file
-    data_dir += f"case{case}/Beta-{int(beta) if beta.is_integer() else beta}/"
+    data_dir += f"case{case}/IID-Ratio-{iid_ratio}/Beta-{int(beta) if beta.is_integer() else beta}/"
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
 
     # get the splitted indices
-    splitted_client_indices = data_split_iidness(dataset, beta, num_clients, case)
+    splitted_client_indices, iid_client_ids = data_split_iidness(dataset, beta, num_clients, case, iid_ratio)
     y_dataset = np.array(dataset.targets, dtype=np.int64)   # get labels of the dataset, in case cifar10 targets is a list
     for client_id in tqdm(range(num_clients)):
         client_indices = splitted_client_indices[client_id]
@@ -165,3 +248,5 @@ def split_and_store(dataset, beta, num_clients, data_dir, case):
         y_client = y_dataset[client_indices]
 
         np.savez(data_dir + f"client_{client_id}", X=X_client, y=y_client)
+    
+    return iid_client_ids

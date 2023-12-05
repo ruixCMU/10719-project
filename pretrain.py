@@ -22,19 +22,6 @@ def _get_args():
 PROJ_DIR = "C:/Users/ruix/Desktop/10719/proj/10719-project/"
 MODEL_DIR = PROJ_DIR + "models/"
 
-class MyDataset(Dataset):
-
-    def __init__(self, X, y) -> None:
-        super().__init__()
-        self.X = X
-        self.y = y
-    
-    def __getitem__(self, index):
-        return (self.X[index], self.y[index])
-    
-    def __len__(self):
-        return self.X.shape[0]
-
 if __name__ == "__main__":
     args = _get_args()
     MODEL_DIR += args.data_name + "/"
