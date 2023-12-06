@@ -107,7 +107,7 @@ if __name__=="__main__":
     if args.aggregation == "FedSGD":
         aggregator = FedAvg()
         local_epoch = 1
-        B = len(trainset) * num_client  # make sure B = in----finite
+        mini_batch_size = len(trainset) * num_client  # make sure B = in----finite
     elif args.aggregation == "FedAvg":
         aggregator = FedAvg()
     else:
