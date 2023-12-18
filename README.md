@@ -1,7 +1,7 @@
 # 10719-project
 
 ## where is the report?
-The report is in the root directory, named `10719_Project_Report.pdf`
+The report is in the root directory, named [10719_Project_Report.pdf](https://github.com/ruixCMU/10719-project/blob/main/10_719_Project_Report.pdf).
 
 ## Environment Install
 Please change the name in the first line of `requirements.yml` (otherwise I believe this will change your default env) and then run:
