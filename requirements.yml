@@ -558,4 +558,4 @@ dependencies:
       - torchsummary==1.5.1
       - torchvision==0.15.2
       - wget==3.2
-prefix: C:\Users\ruix\anaconda3
+# prefix: C:\Users\ruix\anaconda3
