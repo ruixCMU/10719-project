@@ -25,7 +25,7 @@ There are four experiments in the report (1-4), corresponding to Figures 2-5, re
 ```
 cd bats
 experiment[i].bat   # run the bat
-cd ..
+cd ../plotters
 python plotter[i].py
 ```
 
