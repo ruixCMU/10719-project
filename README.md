@@ -1,4 +1,4 @@
-# 10719-project
+# Exploring the Impact of IID-ness on Various FL Approaches at Different Stages of Convergence
 
 ## where is the report?
 The report is in the root directory, named [10719_Project_Report.pdf](https://github.com/ruixCMU/10719-project/blob/main/10_719_Project_Report.pdf).
